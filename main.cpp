@@ -14,7 +14,6 @@ int main()
     window.setFramerateLimit(60);
 
     Sim sim;
-    sim.InitializeGrid(99);
     std::thread simThread(&Sim::StartSim, &sim);
 
     while (window.isOpen())
@@ -26,31 +25,28 @@ int main()
                 window.close();
         }
 
-        window.clear(sf::Color::Green);
+        window.clear(sf::Color::White);
 
-        int currentSimSize = sim.GetCurrentSize();
-        float squareSize = 1000.0f / (float)currentSimSize;
-        for(int i = 0; i < currentSimSize; i++)
+        
+        auto stableGrid = sim.grid;
+        float squareSize = 1000.0f / (float)sim.size;
+        for(int i = 0; i < stableGrid.size(); i++)
         {
-            for(int j = 0; j < currentSimSize; j++)
-            {
-                sf::RectangleShape square(sf::Vector2f(squareSize, squareSize));
-                if(sim.grid.at(i).at(j).squareColor == SquareColor::white)
+            for(int j = 0; j < stableGrid.size(); j++)
+            {   
+                if(stableGrid.at(i).at(j) == SquareColor::Black)
                 {
-                    square.setFillColor(sf::Color::White);
-                }
-                else
-                {
+                    sf::RectangleShape square(sf::Vector2f(squareSize, squareSize));
                     square.setFillColor(sf::Color::Black);
+                    float x = j * squareSize;
+                    float y = i * squareSize;
+                    square.setPosition(x, y);
+                    window.draw(square);
                 }
-                square.setOutlineColor(sf::Color::Black);
-                square.setOutlineThickness(squareSize / 10.0f);
-                float x = j * squareSize;
-                float y = i * squareSize;
-                square.setPosition(x, y);
-                window.draw(square);
             }
         }
+        
+        
         window.display();
     }
 

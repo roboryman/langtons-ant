@@ -1,104 +1,62 @@
-
 #include <iostream>
 #include <iomanip>
 #include <unistd.h>
-#include <math.h>
+#include <unordered_map>
+#include <SFML/System.hpp>
 #include "Sim.hpp"
+
+#define DEF_INIT_SIZE 3
+#define DEF_SPS 5000.0f
+#define DEF_DIRECTION AntDirection::N;
+#define SIZE_LIMIT 10000
 
 using std::cout;
 using std::endl;
+using std::vector;
 
 Sim::Sim()
 {
-    this->size = 0;
+    this->size = DEF_INIT_SIZE;
+    this->antRow = DEF_INIT_SIZE / 2;
+    this->antCol = DEF_INIT_SIZE / 2;
+    this->antDirection = DEF_DIRECTION;
     this->step = 0;
-    this->stepsPerSecond = 100;
-    this->initialized = false;
-    this->antRow = 0;
-    this->antCol = 0;
-    this->antDirection = Direction::N;
+    this->stepsPerSecond = DEF_SPS;
+    this->grid = vector<vector<int>> (DEF_INIT_SIZE, vector<int> (DEF_INIT_SIZE));
 }
 
-void Sim::InitializeGrid(int size)
+Sim::Sim(string gridPath)
 {
-    if(size % 2 == 0)
-    {
-        cout << __FILE__ << ": Grid must be initialized to odd size." << endl;
-        return;
-    }
-
-    this->size = size;
-    for(int i = 0; i < size; i++)
-    {
-        this->grid.push_back(vector<Square>(size));
-    }
-
-    this->initialized = true;
-    this->antRow = size / 2;
-    this->antCol = size / 2;
-}
-
-void Sim::InitializeGrid(string spaceName)
-{
-    // Exists check
-
     // Get the size and data from the disk
     //this->size = .....
     //this->grid = new Square[size * size];
-
-    this->initialized = true;
-    this->antRow = size / 2;
-    this->antCol = size / 2;
 }
 
 void Sim::StartSim()
 {
-    if(!this->initialized)
-    {
-        cout << __FILE__ << ": Simulation not started (Space is not initialized)." << endl;
-        return;
-    }
     cout << __FILE__ << ": Started the simulation." << endl;
 
-    PrintGrid();
-    while(true)
+    //PrintGrid();
+    while(this->size < SIZE_LIMIT)
     {
-        for(int i = 0; i < this->stepsPerSecond; i++)
-        {
-            SimStep();
-            PrintGrid();
-        }
-        sleep(1);
+        useconds_t periodicity = 1.0f / this->stepsPerSecond * 1000000;
+        SimStep();
+        //PrintGrid();
+        usleep(periodicity);
     }
-}
-
-int Sim::GetStepsPerSecond()
-{
-    return this->stepsPerSecond;
-}
-
-void Sim::SetStepsPerSecond(int stepsPerSecond)
-{
-    this->stepsPerSecond = stepsPerSecond;
-}
-
-int Sim::GetCurrentSize()
-{
-    return this->size;
 }
 
 void Sim::SimStep()
 {
-    //int antLocation = GetIndex(this->antRow, this->antCol);
-    if(this->grid[antRow][antCol].squareColor == SquareColor::white)
+    if(this->grid.at(antRow).at(antCol) == SquareColor::White)
     {
         RotateAntClockwise();
-        this->grid[antRow][antCol].squareColor = SquareColor::black;
+        this->grid.at(antRow).at(antCol) = SquareColor::Black;
     }
     else
     {
         RotateAntCounterClockwise();
-        this->grid[antRow][antCol].squareColor = SquareColor::white;
+        this->grid.at(antRow).at(antCol) = SquareColor::White;
     }
 
     MoveAntForward();
@@ -107,66 +65,46 @@ void Sim::SimStep()
 
 void Sim::RotateAntClockwise()
 {
-    switch(this->antDirection)
-    {
-        case Direction::N:
-            this->antDirection = Direction::E;
-            break;
-        case Direction::E:
-            this->antDirection = Direction::S;
-            break;
-        case Direction::S:
-            this->antDirection = Direction::W;
-            break;
-        case Direction::W:
-            this->antDirection = Direction::N;
-            break;
-    }
+    // todo; find a way to do a bimap easily
+    std::unordered_map<AntDirection, AntDirection> CTransformation;
+    CTransformation.emplace(AntDirection::N, AntDirection::E);
+    CTransformation.emplace(AntDirection::E, AntDirection::S);
+    CTransformation.emplace(AntDirection::S, AntDirection::W);
+    CTransformation.emplace(AntDirection::W, AntDirection::N);
+
+    this->antDirection = CTransformation[this->antDirection];
 }
 
 void Sim::RotateAntCounterClockwise()
 {
-    switch(this->antDirection)
-    {
-        case Direction::N:
-            this->antDirection = Direction::W;
-            break;
-        case Direction::E:
-            this->antDirection = Direction::N;
-            break;
-        case Direction::S:
-            this->antDirection = Direction::E;
-            break;
-        case Direction::W:
-            this->antDirection = Direction::S;
-            break;
-    }
+    std::unordered_map<AntDirection, AntDirection> CCTransformation;
+    CCTransformation.emplace(AntDirection::N, AntDirection::W);
+    CCTransformation.emplace(AntDirection::W, AntDirection::S);
+    CCTransformation.emplace(AntDirection::S, AntDirection::E);
+    CCTransformation.emplace(AntDirection::E, AntDirection::N);
+    
+    this->antDirection = CCTransformation[this->antDirection];
 }
 
 void Sim::MoveAntForward()
 {    
     switch(this->antDirection)
     {
-        case Direction::N:
+        case AntDirection::N:
             this->antRow -= 1;
             break;
-        case Direction::E:
+        case AntDirection::E:
             this->antCol += 1;
             break;
-        case Direction::S:
+        case AntDirection::S:
             this->antRow += 1;
             break;
-        case Direction::W:
+        case AntDirection::W:
             this->antCol -= 1;
             break;
     }
 
     CheckBoundaries();
-}
-
-int Sim::GetIndex(int row, int col)
-{
-    return row * this->size + col;
 }
 
 void Sim::CheckBoundaries()
@@ -195,51 +133,27 @@ void Sim::CheckBoundaries()
             this->antRow += 1;
         }
 
-
+        this->grid.insert(this->grid.begin(), vector<int>(this->size, SquareColor::White));
+        this->grid.push_back(vector<int>(this->size, SquareColor::White));
+        this->size += 2;
         for(int i = 0; i < this->size; i++)
         {
-            Square square;
-            this->grid[i].insert(this->grid[i].begin(), square);
-            this->grid.at(i).push_back(square);
+            this->grid.at(i).insert(this->grid.at(i).begin(), SquareColor::White);
+            this->grid.at(i).push_back(SquareColor::White);
         }
-
-        this->size += 2;
-
-        this->grid.insert(this->grid.begin(), vector<Square>(this->size));
-        this->grid.push_back(vector<Square>(this->size));
+        cout << "New size: " << this->size << endl;
     }
 }
 
 void Sim::PrintGrid()
 {
-    /*
     for(int i = 0; i < size; i++)
     {
         for(int j = 0; j < size; j++)
         {
-            cout << this->grid[i][j].squareColor;
+            cout << this->grid.at(i).at(j);
         }
         cout << endl;
     }
     cout << endl;
-
-    cout << "Ant at row: " << this->antRow << ", col: " << this->antCol << endl;
-    /*
-    if((this->step % 5 == 0) && this->step < 1000)
-    {
-        cout << "STEP " << std::setw(15) << std::right << this->step << ": \033[1;4;31mCHAOS\033[0m" << endl;
-    }
-    else if((this->step % 5 == 0) && (this->step < 10000))
-    {
-          cout << "STEP " << std::setw(15) << std::right << this->step << ": \033[1;33mMIXED\033[0m" << endl;
-    }
-    else if((this->step % 5 == 0) && (this->step > 10000))
-    {
-        cout << "STEP " << std::setw(15) << std::right << this->step << ": \033[1;4;32mORDER\033[0m" << endl;
-      }
-    */
-   if(this->step % 100 == 0)
-   {
-       cout << "STEP " << this->step << endl;
-   }
 }

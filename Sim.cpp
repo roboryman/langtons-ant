@@ -2,21 +2,21 @@
 #include <iomanip>
 #include <unistd.h>
 #include <unordered_map>
-#include <thread>
-#include <mutex>
 #include <SFML/System.hpp>
 #include "Sim.hpp"
 
 #define DEF_SPS 1000.0f
 #define DEF_DIRECTION AntDirection::N;
 #define SIZE_LIMIT 1000
-#define DEFAULT_SIZE 111
+#define DEFAULT_SIZE 999
+#define STEP_LIMIT 11000
 
 using std::cout;
 using std::endl;
 using std::vector;
 
-Sim::Sim(int windowSize, TileMap *map)
+// Constructor for a simulation with empty 
+Sim::Sim(int windowSize, TileMap *map, SquareColor defaultColor)
 {
     this->windowSize = windowSize;
     this->size = DEFAULT_SIZE;
@@ -26,7 +26,7 @@ Sim::Sim(int windowSize, TileMap *map)
     this->antDirection = DEF_DIRECTION;
     this->step = 0;
     this->stepsPerSecond = DEF_SPS;
-    this->tileData = vector<short> (size*size, 0);
+    this->tileData = vector<short> (size*size, defaultColor);
 }
 
 Sim::Sim(int windowSize, string gridPath)
@@ -39,16 +39,17 @@ Sim::Sim(int windowSize, string gridPath)
 
 void Sim::StartSim()
 {
-    cout << __FILE__ << ": Started the simulation." << endl;
+    cout << __FILE__ << ": Simulation started." << endl;
 
-    map->update(windowSize / (float) size, size, tileData);
-    while(true)
+    map->load(windowSize / (float) size, size, tileData);
+    while(CheckIfActive())
     {
         useconds_t periodicity = 1.0f / stepsPerSecond * 1000000;
         SimStep();
-        //PrintGrid();
         usleep(periodicity);
     }
+
+    cout << __FILE__ << ": Simulated stopped." << endl;
 }
 
 void Sim::SimStep()
@@ -68,7 +69,7 @@ void Sim::SimStep()
 
     map->UpdateTile(antIndex, tileData);
     MoveAntForward();
-    this->step++;
+    step++;
 }
 
 void Sim::RotateAntClockwise()
@@ -80,7 +81,7 @@ void Sim::RotateAntClockwise()
     CTransformation.emplace(AntDirection::S, AntDirection::W);
     CTransformation.emplace(AntDirection::W, AntDirection::N);
 
-    this->antDirection = CTransformation[this->antDirection];
+    antDirection = CTransformation[antDirection];
 }
 
 void Sim::RotateAntCounterClockwise()
@@ -91,54 +92,63 @@ void Sim::RotateAntCounterClockwise()
     CCTransformation.emplace(AntDirection::S, AntDirection::E);
     CCTransformation.emplace(AntDirection::E, AntDirection::N);
     
-    this->antDirection = CCTransformation[this->antDirection];
+    antDirection = CCTransformation[antDirection];
 }
 
 void Sim::MoveAntForward()
 {    
-    switch(this->antDirection)
+    switch(antDirection)
     {
         case AntDirection::N:
-            this->antRow -= 1;
+            antRow -= 1;
             break;
         case AntDirection::E:
-            this->antCol += 1;
+            antCol += 1;
             break;
         case AntDirection::S:
-            this->antRow += 1;
+            antRow += 1;
             break;
         case AntDirection::W:
-            this->antCol -= 1;
+            antCol -= 1;
             break;
     }
-
-    CheckBoundaries();
 }
 
-void Sim::CheckBoundaries()
+
+bool Sim::CheckIfActive()
 {
-    if(    (this->antRow < 0) || (this->antRow >= this->size)
-        || (this->antCol < 0) || (this->antCol >= this->size))
+    if (step >= STEP_LIMIT)
     {
-        if(this->antRow < 0)
+        cout << __FILE__ << ": Reached step limit of " << STEP_LIMIT << "." << endl;
+        return false;
+    }
+    if(    (antRow < 0) || (antRow >= size)
+        || (antCol < 0) || (antCol >= size))
+    {
+        
+        cout << __FILE__ << ": Ant traversed out of bounds." << endl;
+        return false;
+
+        /*
+        if(antRow < 0)
         {
-            this->antRow = 0;
-            this->antCol += 1;
+            antRow = 0;
+            antCol += 1;
         }
-        else if(this->antRow >= this->size)
+        else if(antRow >= size)
         {
-            this->antRow += 1;
-            this->antCol += 1;
+            antRow += 1;
+            antCol += 1;
         }
-        else if(this->antCol < 0)
+        else if(antCol < 0)
         {
-            this->antCol = 0;
-            this->antRow += 1;
+            antCol = 0;
+            antRow += 1;
         }
-        else if(this->antCol >= this->size)
+        else if(antCol >= size)
         {
-            this->antCol += 1;
-            this->antRow += 1;
+            antCol += 1;
+            antRow += 1;
         }
 
         for (int i = 0; i < tileData.size(); i+=(size+1))
@@ -152,8 +162,11 @@ void Sim::CheckBoundaries()
         size += 2;
         tileData.insert(tileData.begin(), size, 0);
         tileData.insert(tileData.end(), size, 0);
-        map->update(windowSize / (float) size, size, tileData);
+        map->load(windowSize / (float) size, size, tileData);
+        */
     }
+
+    return true;
 }
 
 void Sim::PrintGrid()

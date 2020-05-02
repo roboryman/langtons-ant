@@ -16,6 +16,6 @@ class TileMap : public sf::Drawable, public sf::Transformable {
 
     public:
         TileMap();
-        bool update(float tileSize, int size, vector<short> &tileData);
+        bool load(float tileSize, int size, vector<short> &tileData);
         void UpdateTile(int index, vector<short> &tileData);
 };

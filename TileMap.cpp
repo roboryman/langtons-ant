@@ -21,7 +21,7 @@ void TileMap::UpdateTile(int index, vector<short> &tileData)
     quad[3].color = ColorMap[tileType];
 }
 
-bool TileMap::update(float tileSize, int size, vector<short> &tileData)
+bool TileMap::load(float tileSize, int size, vector<short> &tileData)
 {
     m_vertices.setPrimitiveType(sf::Quads);
     m_vertices.resize(size * size * 4);

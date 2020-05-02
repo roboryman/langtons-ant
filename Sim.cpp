@@ -2,31 +2,36 @@
 #include <iomanip>
 #include <unistd.h>
 #include <unordered_map>
+#include <thread>
+#include <mutex>
 #include <SFML/System.hpp>
 #include "Sim.hpp"
 
-#define DEF_INIT_SIZE 3
-#define DEF_SPS 5000.0f
+#define DEF_SPS 1000.0f
 #define DEF_DIRECTION AntDirection::N;
-#define SIZE_LIMIT 10000
+#define SIZE_LIMIT 1000
+#define DEFAULT_SIZE 111
 
 using std::cout;
 using std::endl;
 using std::vector;
 
-Sim::Sim()
+Sim::Sim(int windowSize, TileMap *map)
 {
-    this->size = DEF_INIT_SIZE;
-    this->antRow = DEF_INIT_SIZE / 2;
-    this->antCol = DEF_INIT_SIZE / 2;
+    this->windowSize = windowSize;
+    this->size = DEFAULT_SIZE;
+    this->map = map;
+    this->antRow = size / 2;
+    this->antCol = size / 2;
     this->antDirection = DEF_DIRECTION;
     this->step = 0;
     this->stepsPerSecond = DEF_SPS;
-    this->grid = vector<vector<int>> (DEF_INIT_SIZE, vector<int> (DEF_INIT_SIZE));
+    this->tileData = vector<short> (size*size, 0);
 }
 
-Sim::Sim(string gridPath)
+Sim::Sim(int windowSize, string gridPath)
 {
+    this->windowSize = windowSize;
     // Get the size and data from the disk
     //this->size = .....
     //this->grid = new Square[size * size];
@@ -36,10 +41,10 @@ void Sim::StartSim()
 {
     cout << __FILE__ << ": Started the simulation." << endl;
 
-    //PrintGrid();
-    while(this->size < SIZE_LIMIT)
+    map->update(windowSize / (float) size, size, tileData);
+    while(true)
     {
-        useconds_t periodicity = 1.0f / this->stepsPerSecond * 1000000;
+        useconds_t periodicity = 1.0f / stepsPerSecond * 1000000;
         SimStep();
         //PrintGrid();
         usleep(periodicity);
@@ -48,17 +53,20 @@ void Sim::StartSim()
 
 void Sim::SimStep()
 {
-    if(this->grid.at(antRow).at(antCol) == SquareColor::White)
+    int antIndex = TransformToRowMajorIndex(antRow, antCol);
+
+    if(tileData.at(antIndex) == SquareColor::White)
     {
         RotateAntClockwise();
-        this->grid.at(antRow).at(antCol) = SquareColor::Black;
+        tileData.at(antIndex) = SquareColor::Black;
     }
     else
     {
         RotateAntCounterClockwise();
-        this->grid.at(antRow).at(antCol) = SquareColor::White;
+        tileData.at(antIndex) = SquareColor::White;
     }
 
+    map->UpdateTile(antIndex, tileData);
     MoveAntForward();
     this->step++;
 }
@@ -133,27 +141,41 @@ void Sim::CheckBoundaries()
             this->antRow += 1;
         }
 
-        this->grid.insert(this->grid.begin(), vector<int>(this->size, SquareColor::White));
-        this->grid.push_back(vector<int>(this->size, SquareColor::White));
-        this->size += 2;
-        for(int i = 0; i < this->size; i++)
+        for (int i = 0; i < tileData.size(); i+=(size+1))
         {
-            this->grid.at(i).insert(this->grid.at(i).begin(), SquareColor::White);
-            this->grid.at(i).push_back(SquareColor::White);
+            tileData.insert(tileData.begin() + i, 0);
         }
-        cout << "New size: " << this->size << endl;
+        for (int i = (size+1); i <= tileData.size(); i+=(size+2))
+        {
+            tileData.insert(tileData.begin() + i, 0);
+        }
+        size += 2;
+        tileData.insert(tileData.begin(), size, 0);
+        tileData.insert(tileData.end(), size, 0);
+        map->update(windowSize / (float) size, size, tileData);
     }
 }
 
 void Sim::PrintGrid()
 {
-    for(int i = 0; i < size; i++)
+    cout << "Tile data size: " << tileData.size();
+    vector<short>::size_type tdS = tileData.size();
+    for (int i = 0; i < tdS; i++)
     {
-        for(int j = 0; j < size; j++)
-        {
-            cout << this->grid.at(i).at(j);
-        }
-        cout << endl;
+        if(i % size == 0)
+            cout << endl;
+        cout << tileData[i] << " ";
     }
+
     cout << endl;
+}
+
+int Sim::TransformToRowMajorIndex(int row, int col)
+{
+    return row*size + col;
+}
+
+sf::Vector2i Sim::TransformToRowCol(int index)
+{
+    return sf::Vector2i(index / size, index % size);
 }

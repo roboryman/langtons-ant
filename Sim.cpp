@@ -9,7 +9,7 @@
 #define DEF_DIRECTION AntDirection::N;
 #define SIZE_LIMIT 1000
 #define DEFAULT_SIZE 999
-#define STEP_LIMIT 11000
+#define STEP_LIMIT 20000
 
 using std::cout;
 using std::endl;
@@ -128,42 +128,6 @@ bool Sim::CheckIfActive()
         
         cout << __FILE__ << ": Ant traversed out of bounds." << endl;
         return false;
-
-        /*
-        if(antRow < 0)
-        {
-            antRow = 0;
-            antCol += 1;
-        }
-        else if(antRow >= size)
-        {
-            antRow += 1;
-            antCol += 1;
-        }
-        else if(antCol < 0)
-        {
-            antCol = 0;
-            antRow += 1;
-        }
-        else if(antCol >= size)
-        {
-            antCol += 1;
-            antRow += 1;
-        }
-
-        for (int i = 0; i < tileData.size(); i+=(size+1))
-        {
-            tileData.insert(tileData.begin() + i, 0);
-        }
-        for (int i = (size+1); i <= tileData.size(); i+=(size+2))
-        {
-            tileData.insert(tileData.begin() + i, 0);
-        }
-        size += 2;
-        tileData.insert(tileData.begin(), size, 0);
-        tileData.insert(tileData.end(), size, 0);
-        map->load(windowSize / (float) size, size, tileData);
-        */
     }
 
     return true;

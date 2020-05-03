@@ -27,11 +27,11 @@ class Sim
         int antRow;
         int antCol;
         AntDirection antDirection;
-        int step;
         float stepsPerSecond;
     public:
         Sim(int windowSize, TileMap *map, SquareColor defaultColor);
         Sim(int windowSize, string gridPath);
         void StartSim();
         vector<short> tileData;
+        int step;
 };

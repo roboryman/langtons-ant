@@ -1,7 +1,8 @@
 #include "TileMap.hpp"
 
-TileMap::TileMap()
+TileMap::TileMap(int size)
 {
+    this->size = size;
     ColorMap.emplace(0, sf::Color::White);
     ColorMap.emplace(1, sf::Color::Black);
     ColorMap.emplace(2, sf::Color::Red);
@@ -23,6 +24,7 @@ void TileMap::UpdateTile(int index, vector<short> &tileData)
 
 bool TileMap::load(float tileSize, int size, vector<short> &tileData)
 {
+    m_vertices.clear();
     m_vertices.setPrimitiveType(sf::Quads);
     m_vertices.resize(size * size * 4);
 

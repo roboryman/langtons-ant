@@ -1,52 +1,49 @@
 #include <iostream>
 #include <iomanip>
+#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <SFML/System.hpp>
 #include "Sim.hpp"
-
-#define DEF_SPS 1000.0f
-#define DEF_DIRECTION AntDirection::N;
-#define SIZE_LIMIT 1000
-#define DEFAULT_SIZE 999
-#define STEP_LIMIT 20000
 
 using std::cout;
 using std::endl;
 using std::vector;
 
 // Constructor for a simulation with empty 
-Sim::Sim(int windowSize, TileMap *map, SquareColor defaultColor)
+Sim::Sim(TileMap *map, int windowSize, int stepLimit, SquareColor defaultColor, AntDirection defaultDirection, int stepsPerSecond)
 {
     this->windowSize = windowSize;
-    this->size = DEFAULT_SIZE;
+    this->size = map->size;
     this->map = map;
     this->antRow = size / 2;
     this->antCol = size / 2;
-    this->antDirection = DEF_DIRECTION;
+    this->antDirection = defaultDirection;
+    this->defaultDirection = defaultDirection;
     this->step = 0;
-    this->stepsPerSecond = DEF_SPS;
+    this->stepsPerSecond = stepsPerSecond;
+    this->defaultColor = defaultColor;
     this->tileData = vector<short> (size*size, defaultColor);
+    this->active = false;
+    this->finished = false;
+    this->stepLimit = stepLimit;
 }
 
-Sim::Sim(int windowSize, string gridPath)
-{
-    this->windowSize = windowSize;
-    // Get the size and data from the disk
-    //this->size = .....
-    //this->grid = new Square[size * size];
-}
 
-void Sim::StartSim()
+void Sim::Start()
 {
     cout << __FILE__ << ": Simulation started." << endl;
 
     map->load(windowSize / (float) size, size, tileData);
-    while(CheckIfActive())
+    while(true)
     {
-        useconds_t periodicity = 1.0f / stepsPerSecond * 1000000;
-        SimStep();
-        usleep(periodicity);
+        if(active && !finished)
+        {
+            useconds_t periodicity = 1.0f / stepsPerSecond * 1000000;
+            SimStep();
+            CheckIfFinished();
+            usleep(periodicity);
+        }
     }
 
     cout << __FILE__ << ": Simulated stopped." << endl;
@@ -56,15 +53,15 @@ void Sim::SimStep()
 {
     int antIndex = TransformToRowMajorIndex(antRow, antCol);
 
-    if(tileData.at(antIndex) == SquareColor::White)
+    if(tileData.at(antIndex) == White)
     {
         RotateAntClockwise();
-        tileData.at(antIndex) = SquareColor::Black;
+        tileData.at(antIndex) = Black;
     }
     else
     {
         RotateAntCounterClockwise();
-        tileData.at(antIndex) = SquareColor::White;
+        tileData.at(antIndex) = White;
     }
 
     map->UpdateTile(antIndex, tileData);
@@ -76,10 +73,10 @@ void Sim::RotateAntClockwise()
 {
     // todo; find a way to do a bimap easily
     std::unordered_map<AntDirection, AntDirection> CTransformation;
-    CTransformation.emplace(AntDirection::N, AntDirection::E);
-    CTransformation.emplace(AntDirection::E, AntDirection::S);
-    CTransformation.emplace(AntDirection::S, AntDirection::W);
-    CTransformation.emplace(AntDirection::W, AntDirection::N);
+    CTransformation.emplace(N, E);
+    CTransformation.emplace(E, S);
+    CTransformation.emplace(S, W);
+    CTransformation.emplace(W, N);
 
     antDirection = CTransformation[antDirection];
 }
@@ -87,10 +84,10 @@ void Sim::RotateAntClockwise()
 void Sim::RotateAntCounterClockwise()
 {
     std::unordered_map<AntDirection, AntDirection> CCTransformation;
-    CCTransformation.emplace(AntDirection::N, AntDirection::W);
-    CCTransformation.emplace(AntDirection::W, AntDirection::S);
-    CCTransformation.emplace(AntDirection::S, AntDirection::E);
-    CCTransformation.emplace(AntDirection::E, AntDirection::N);
+    CCTransformation.emplace(N, W);
+    CCTransformation.emplace(W, S);
+    CCTransformation.emplace(S, E);
+    CCTransformation.emplace(E, N);
     
     antDirection = CCTransformation[antDirection];
 }
@@ -99,38 +96,38 @@ void Sim::MoveAntForward()
 {    
     switch(antDirection)
     {
-        case AntDirection::N:
+        case N:
             antRow -= 1;
             break;
-        case AntDirection::E:
+        case E:
             antCol += 1;
             break;
-        case AntDirection::S:
+        case S:
             antRow += 1;
             break;
-        case AntDirection::W:
+        case W:
             antCol -= 1;
             break;
     }
 }
 
 
-bool Sim::CheckIfActive()
+void Sim::CheckIfFinished()
 {
-    if (step >= STEP_LIMIT)
+    if (step >= stepLimit)
     {
-        cout << __FILE__ << ": Reached step limit of " << STEP_LIMIT << "." << endl;
-        return false;
+        cout << __FILE__ << ": Reached step limit of " << stepLimit << "." << endl;
+        finished = true;
+        active = false;
     }
     if(    (antRow < 0) || (antRow >= size)
         || (antCol < 0) || (antCol >= size))
     {
         
         cout << __FILE__ << ": Ant traversed out of bounds." << endl;
-        return false;
+        finished = true;
+        active = false;
     }
-
-    return true;
 }
 
 void Sim::PrintGrid()
@@ -155,4 +152,33 @@ int Sim::TransformToRowMajorIndex(int row, int col)
 sf::Vector2i Sim::TransformToRowCol(int index)
 {
     return sf::Vector2i(index / size, index % size);
+}
+
+void Sim::ToggleActive()
+{
+    this->active = !this->active;
+}
+
+void Sim::SetActive(bool active)
+{
+    this->active = active;
+}
+
+void Sim::Reset()
+{
+    cout << "Resetting simulation." << endl;
+    active = false;
+    finished = false;
+    antRow = size / 2;
+    antCol = size / 2;
+    antDirection = defaultDirection;
+    step = 0;
+    std::fill(tileData.begin(), tileData.end(), defaultColor);
+    map->load(windowSize / (float) size, size, tileData);
+}
+
+
+void Sim::setStepsPerSecond(int stepsPerSecond)
+{
+    this->stepsPerSecond = stepsPerSecond;
 }

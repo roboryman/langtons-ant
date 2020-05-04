@@ -15,7 +15,8 @@ class TileMap : public sf::Drawable, public sf::Transformable {
     virtual void draw(sf::RenderTarget& target, sf::RenderStates states) const;
 
     public:
-        TileMap();
+        int size;
+        TileMap(int size = 999);
         bool load(float tileSize, int size, vector<short> &tileData);
         void UpdateTile(int index, vector<short> &tileData);
 };

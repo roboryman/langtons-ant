@@ -3,13 +3,11 @@
 #include <vector>
 #include <string>
 #include "TileMap.hpp"
-#include <SFML/System/Vector2.hpp>
 
 using std::vector;
 using std::string;
 
 enum AntDirection { N, E, S, W };
-enum SquareColor { White, Black };
 
 class Sim
 {
@@ -20,15 +18,12 @@ class Sim
     void CheckIfFinished();
     void PrintGrid();
     int TransformToRowMajorIndex(int row, int col);
-    sf::Vector2i TransformToRowCol(int index);
     int windowSize;
-    int size;
-    TileMap *map;
+    TileMap tileMap;
     int antRow;
     int antCol;
     AntDirection antDirection;
-    AntDirection defaultDirection;
-    SquareColor defaultColor;
+    short defaultColor;
     bool active;
     bool finished;
     public:
@@ -36,10 +31,15 @@ class Sim
         int step;
         int stepsPerSecond;
         int stepLimit;
-        Sim(TileMap *map, int windowSize, int stepLimit, SquareColor defaultColor = White, AntDirection defaultDirection = N, int stepsPerSecond = 1);
+        int size;
+        string ruleset;
+        bool showAnt;
+        AntDirection defaultDirection;
+        Sim(int windowSize = 1000, int stepLimit = 15000, short defaultColor = 0, AntDirection defaultDirection = N, int stepsPerSecond = 1, string ruleset = "RL", bool showAnt = true, int size = 999);
         void Start();
         void ToggleActive();
         void SetActive(bool active);
         void Reset();
         void setStepsPerSecond(int stepsPerSecond);
+        TileMap& GetTileMap();
 };

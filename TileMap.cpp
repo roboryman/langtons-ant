@@ -1,17 +1,36 @@
+#include <string>
+#include <fstream>
+#include <sstream>
 #include "TileMap.hpp"
 
-TileMap::TileMap(int size)
+
+TileMap::TileMap()
 {
-    this->size = size;
-    ColorMap.emplace(0, sf::Color::White);
-    ColorMap.emplace(1, sf::Color::Black);
-    ColorMap.emplace(2, sf::Color::Red);
-    ColorMap.emplace(3, sf::Color::Green);
-    ColorMap.emplace(4, sf::Color::Blue);
-    ColorMap.emplace(5, sf::Color::Yellow);
+    FillColorMap("resources/colors.txt");
 }
 
-void TileMap::UpdateTile(int index, vector<short> &tileData)
+void TileMap::FillColorMap(std::string path)
+{
+    std::ifstream colors(path);
+
+    if(colors.is_open())
+    {
+        std::string color;
+        int i = 0;
+        while(getline(colors, color))
+        {
+            std::istringstream istream(color);
+            std::string r, g, b;
+            std::getline(istream, r, ',');
+            std::getline(istream, g, ',');
+            std::getline(istream, b, ',');
+            ColorMap.emplace(i++, sf::Color(std::stoi(r), std::stoi(g), std::stoi(b), 255));
+        }
+        colors.close();
+    }
+}
+
+void TileMap::UpdateTile(int index, std::vector<short> &tileData)
 {
     int tileType = tileData.at(index);
     sf::Vertex *quad = &m_vertices[ index * 4];
@@ -22,7 +41,7 @@ void TileMap::UpdateTile(int index, vector<short> &tileData)
     quad[3].color = ColorMap[tileType];
 }
 
-bool TileMap::load(float tileSize, int size, vector<short> &tileData)
+bool TileMap::load(float tileSize, int size, std::vector<short> &tileData)
 {
     m_vertices.clear();
     m_vertices.setPrimitiveType(sf::Quads);

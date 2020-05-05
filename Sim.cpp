@@ -1,6 +1,5 @@
 #include <iostream>
 #include <iomanip>
-#include <thread>
 #include <unistd.h>
 #include <unordered_map>
 #include <SFML/System.hpp>
@@ -11,11 +10,10 @@ using std::endl;
 using std::vector;
 
 // Constructor for a simulation with empty 
-Sim::Sim(TileMap *map, int windowSize, int stepLimit, SquareColor defaultColor, AntDirection defaultDirection, int stepsPerSecond)
+Sim::Sim(int windowSize, int stepLimit, short defaultColor, AntDirection defaultDirection, int stepsPerSecond, string ruleset, bool showAnt, int size)
 {
     this->windowSize = windowSize;
-    this->size = map->size;
-    this->map = map;
+    this->size = size;
     this->antRow = size / 2;
     this->antCol = size / 2;
     this->antDirection = defaultDirection;
@@ -27,14 +25,15 @@ Sim::Sim(TileMap *map, int windowSize, int stepLimit, SquareColor defaultColor, 
     this->active = false;
     this->finished = false;
     this->stepLimit = stepLimit;
+    this->ruleset = ruleset;
+    this->showAnt = showAnt;
 }
-
 
 void Sim::Start()
 {
     cout << __FILE__ << ": Simulation started." << endl;
 
-    map->load(windowSize / (float) size, size, tileData);
+    tileMap.load(windowSize / (float) size, size, tileData);
     while(true)
     {
         if(active && !finished)
@@ -53,18 +52,31 @@ void Sim::SimStep()
 {
     int antIndex = TransformToRowMajorIndex(antRow, antCol);
 
-    if(tileData.at(antIndex) == White)
-    {
-        RotateAntClockwise();
-        tileData.at(antIndex) = Black;
-    }
-    else
+    // 3 color example
+    // L R L:
+    // 0 1 2
+    //
+    // 0: Flip to 1, turn left, go forwards
+    // 1: Flip to 2, turn right, go forwards
+    // 2: Flip to 0, turn left, go forwards 
+
+    if(ruleset.at(tileData.at(antIndex)) == 'L')
     {
         RotateAntCounterClockwise();
-        tileData.at(antIndex) = White;
+    }
+    else if(ruleset.at(tileData.at(antIndex))  == 'R')
+    {
+        RotateAntClockwise();
     }
 
-    map->UpdateTile(antIndex, tileData);
+    tileData.at(antIndex) += 1;
+    if(tileData.at(antIndex) == ruleset.length())
+    {
+        tileData.at(antIndex) = 0;
+    }
+
+
+    tileMap.UpdateTile(antIndex, tileData);
     MoveAntForward();
     step++;
 }
@@ -149,11 +161,6 @@ int Sim::TransformToRowMajorIndex(int row, int col)
     return row*size + col;
 }
 
-sf::Vector2i Sim::TransformToRowCol(int index)
-{
-    return sf::Vector2i(index / size, index % size);
-}
-
 void Sim::ToggleActive()
 {
     this->active = !this->active;
@@ -173,12 +180,18 @@ void Sim::Reset()
     antCol = size / 2;
     antDirection = defaultDirection;
     step = 0;
-    std::fill(tileData.begin(), tileData.end(), defaultColor);
-    map->load(windowSize / (float) size, size, tileData);
+    tileData.clear();
+    tileData = vector<short> (size*size, defaultColor);
+    tileMap.load(windowSize / (float) size, size, tileData);
 }
 
 
 void Sim::setStepsPerSecond(int stepsPerSecond)
 {
     this->stepsPerSecond = stepsPerSecond;
+}
+
+TileMap& Sim::GetTileMap()
+{
+    return tileMap;
 }

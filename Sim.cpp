@@ -43,7 +43,10 @@ void Sim::Start()
             CheckIfFinished();
 
             // Sleep between steps! (todo: use sf::Timer instead)
-            usleep(periodicity);
+            if(stepsPerSecond > 0)
+            {
+                usleep(periodicity);
+            }
         }
     }
 
